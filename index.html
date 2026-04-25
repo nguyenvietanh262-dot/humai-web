@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Humai — Sống Biết Ơn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Lora:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+
+<!-- ==========================================
+     HUMAI — MẠNG XÃ HỘI SỐNG BIẾT ƠN
+     Prototype v1 · Chủ đề: Khu vườn
+
+     HƯỚNG DẪN TRIỂN KHAI:
+     1. Mở file này trên trình duyệt (Chrome/Firefox/Edge)
+     2. Để Souly AI hoạt động: cần backend proxy riêng
+        (xem phần CONFIG bên dưới — thay API_ENDPOINT)
+     3. Hiện tại chạy offline hoàn toàn (trừ Souly AI)
+
+     CẤU TRÚC FILE:
+     - PHẦN 1: CSS / Design System (Chủ đề Khu vườn)
+     - PHẦN 2: HTML Layout
+     - PHẦN 3: JavaScript (State & Logic)
+     - PHẦN 4: SVG Garden Rendering
+     - PHẦN 5: Page Renderers (8 trang)
+     - PHẦN 6: Souly AI Chat
+     ========================================== -->
+
+<style>
+/* =========================================
+   PHẦN 1: DESIGN SYSTEM — CHỦ ĐỀ KHU VƯỜN
+   ========================================= */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  /* Màu chủ đạo — Khu vườn */
+  --leaf:        #4A9B6F;
+  --leaf-light:  #6DC28A;
+  --leaf-pale:   #A8D8B2;
+  --leaf-bg:     #EAF5EE;
+  --sky:         #E8F4F0;
+  --sky2:        #D4EDE7;
+  --bark:        #8B6040;
+  --bark-dark:   #6B4A30;
+  --grass:       #7CB87A;
+  --petal-pink:  #F4A7B9;
+  --petal-amber: #FBBF7C;
+  --petal-blue:  #A8D4F5;
+
+  /* Màu vàng / điểm */
+  --gold:        #E8B84B;
+  --gold-dark:   #8B5E0A;
+  --gold-pale:   #FEF6E4;
+  --gold-border: #F0D87A;
+
+  /* Text */
+  --text-dark:   #2D4A3E;
+  --text-mid:    #4A6B5A;
+  --text-soft:   #7A9A8A;
+
+  /* Backgrounds */
+  --bg-page:     #F2F8F4;
+  --bg-card:     #FFFFFF;
+  --bg-input:    #F8FCF9;
+
+  /* Borders */
+  --border:      #D4E8DA;
+  --border-mid:  #B8D8C4;
+
+  /* Layout */
+  --sidebar-w:   230px;
+  --topbar-h:    58px;
+  --radius:      14px;
+  --radius-sm:   9px;
+  --shadow:      0 2px 14px rgba(45, 74, 62, 0.08);
+  --shadow-md:   0 6px 24px rgba(45, 74, 62, 0.12);
+}
+
+html, body { height: 100%; font-family: 'Nunito', sans-serif; background: var(--bg-page); color: var(--text-dark); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+/* ── Layout ── */
+.app { display: flex; min-height: 100vh; }
+.sidebar {
+  width: var(--sidebar-w); background: var(--bg-card);
+  border-right: 1.5px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0;
+  height: 100vh; overflow-y: auto; z-index: 200;
+}
+.main { margin-left: var(--sidebar-w); flex: 1; min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+  height: var(--topbar-h); background: var(--bg-card);
+  border-bottom: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; position: sticky; top: 0; z-index: 100;
+}
+.page-content { padding: 24px; max-width: 900px; }
+.page-full { height: calc(100vh - var(--topbar-h)); display: flex; flex-direction: column; }
+.hidden { display: none !important; }
+
+/* ── Logo ── */
+.logo-wrap { padding: 20px 18px 15px; border-bottom: 1px solid var(--border); }
+.logo-row { display: flex; align-items: center; gap: 9px; }
+.logo-icon {
+  width: 36px; height: 36px; border-radius: 11px;
+  background: var(--leaf); display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-name { font-family: 'Lora', serif; font-size: 20px; color: var(--text-dark); font-weight: 600; }
+.logo-tagline { font-size: 10px; color: var(--text-soft); font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; margin-top: 2px; }
+
+/* ── Nav ── */
+.nav { padding: 8px 0; flex: 1; }
+.nav-section { padding: 10px 18px 4px; font-size: 9.5px; color: var(--text-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.9px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 18px; cursor: pointer;
+  transition: all 0.18s; font-size: 13px;
+  color: var(--text-mid); font-weight: 600;
+  border-left: 3px solid transparent; margin: 1px 0;
+  user-select: none;
+}
+.nav-item:hover { background: var(--leaf-bg); color: var(--leaf); border-left-color: var(--leaf-light); }
+.nav-item.active { background: var(--leaf-bg); color: var(--leaf); border-left-color: var(--leaf); font-weight: 700; }
+.nav-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto; background: var(--gold); color: #fff;
+  font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700;
+}
+
+/* ── Me strip ── */
+.me-strip { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 9px; }
+.me-name { font-size: 12.5px; font-weight: 700; color: var(--text-dark); }
+.me-pts { font-size: 11px; color: var(--gold-dark); font-weight: 700; margin-top: 1px; }
+
+/* ── Avatar ── */
+.av {
+  border-radius: 50%; background: var(--leaf);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; flex-shrink: 0; cursor: pointer;
+}
+.av-lg { width: 64px; height: 64px; font-size: 22px; }
+.av-md { width: 38px; height: 38px; font-size: 14px; }
+.av-sm { width: 30px; height: 30px; font-size: 10.5px; }
+.av-xs { width: 24px; height: 24px; font-size: 8.5px; }
+
+/* ── Topbar ── */
+.topbar-title { font-size: 14.5px; font-weight: 700; color: var(--text-dark); }
+.pts-pill {
+  background: var(--gold-pale); color: var(--gold-dark);
+  padding: 5px 14px; border-radius: 20px;
+  font-size: 12px; font-weight: 700;
+  border: 1px solid var(--gold-border);
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 10.5px; font-weight: 700; color: var(--text-soft);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;
+}
+.card-green { background: #F2FBF5; border-color: var(--leaf-pale); }
+.card-gold { background: var(--gold-pale); border-color: var(--gold-border); }
+
+/* ── Grid ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
+.grid-plants { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
+
+/* ── Spacing helpers ── */
+.mb-8  { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-20 { margin-bottom: 20px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+
+/* ── Flex helpers ── */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-c { align-items: center; }
+.items-start { align-items: flex-start; }
+.jbet { justify-content: space-between; }
+.jcen { justify-content: center; }
+.gap-6  { gap: 6px; }
+.gap-8  { gap: 8px; }
+.gap-10 { gap: 10px; }
+.gap-12 { gap: 12px; }
+.w-full { width: 100%; }
+.flex-1 { flex: 1; }
+.flex-wrap { flex-wrap: wrap; }
+
+/* ── Typography ── */
+.text-xs   { font-size: 11px; }
+.text-sm   { font-size: 12.5px; }
+.text-base { font-size: 13.5px; }
+.text-soft { color: var(--text-soft); }
+.text-mid  { color: var(--text-mid); }
+.text-leaf { color: var(--leaf); }
+.text-gold { color: var(--gold-dark); }
+.font-bold { font-weight: 700; }
+.font-800  { font-weight: 800; }
+.serif     { font-family: 'Lora', serif; }
+
+/* ── Badges ── */
+.badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.badge-green  { background: #E6F4EB; color: #266B3A; }
+.badge-gold   { background: var(--gold-pale); color: var(--gold-dark); }
+.badge-teal   { background: #E1F5F0; color: #0A6B50; }
+.badge-soft   { background: #F0F8F3; color: var(--text-mid); }
+.badge-red    { background: #FEF0F0; color: #8B3030; }
+.badge-blue   { background: #EEF4FF; color: #1A4C8C; }
+
+/* ── Status dot ── */
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.s-online  { background: #4CAF50; }
+.s-away    { background: #FFB300; }
+.s-offline { background: #B0BEC5; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all 0.18s; border: none;
+  font-family: 'Nunito', sans-serif; white-space: nowrap;
+  user-select: none;
+}
+.btn-leaf   { background: var(--leaf); color: #fff; }
+.btn-leaf:hover { background: var(--leaf-light); }
+.btn-gold   { background: var(--gold); color: #fff; }
+.btn-gold:hover { filter: brightness(1.08); }
+.btn-outline { background: transparent; color: var(--leaf); border: 1.5px solid var(--leaf); }
+.btn-outline:hover { background: var(--leaf-bg); }
+.btn-sm  { padding: 6px 13px; font-size: 12px; border-radius: 7px; }
+.btn-xs  { padding: 4px 10px; font-size: 11px; border-radius: 6px; }
+.btn-w   { width: 100%; justify-content: center; }
+
+/* ── Forms ── */
+input, textarea, select {
+  font-family: 'Nunito', sans-serif; font-size: 13px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 9px 12px; width: 100%;
+  background: var(--bg-input); color: var(--text-dark);
+  transition: border 0.18s; outline: none;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--leaf); background: var(--bg-card); }
+textarea { resize: vertical; min-height: 88px; line-height: 1.6; }
+label { font-size: 11.5px; font-weight: 700; color: var(--text-soft); display: block; margin-bottom: 5px; }
+.form-group { margin-bottom: 12px; }
+
+/* ── Garden hero ── */
+.garden-hero {
+  background: var(--sky); border-radius: 18px;
+  overflow: hidden; border: 1.5px solid var(--sky2);
+  margin-bottom: 20px;
+}
+.garden-hero svg { display: block; }
+
+/* ── Progress bar ── */
+.progress { background: #E4EEE7; border-radius: 8px; height: 5px; overflow: hidden; }
+.progress-fill { background: var(--leaf); height: 100%; border-radius: 8px; transition: width 0.5s ease; }
+.progress-gold { background: var(--gold); }
+
+/* ── Task item ── */
+.task-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 13px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--bg-card);
+  margin-bottom: 7px; transition: all 0.18s; cursor: pointer;
+}
+.task-item:hover { border-color: var(--leaf-light); background: #F4FBF6; }
+.task-item.done { opacity: 0.42; pointer-events: none; }
+.task-check {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--border); display: flex;
+  align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.2s; cursor: pointer;
+  font-size: 11px; font-weight: 700; color: transparent;
+}
+.task-check.on { background: var(--leaf); border-color: var(--leaf); color: #fff; }
+.task-nudge { font-size: 11px; color: var(--leaf); font-weight: 600; margin-top: 2px; }
+.task-pts   { font-size: 11.5px; font-weight: 700; color: var(--gold-dark); white-space: nowrap; }
+
+/* ── Plant card ── */
+.plant-card {
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 14px 12px; text-align: center;
+  cursor: pointer; transition: all 0.2s;
+}
+.plant-card:hover { border-color: var(--leaf-light); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.plant-svg-wrap { height: 90px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 8px; }
+.plant-name { font-size: 12px; font-weight: 700; color: var(--text-dark); margin-bottom: 3px; }
+.plant-desc { font-size: 10.5px; color: var(--text-soft); margin-bottom: 6px; }
+.plant-pts  { font-size: 10.5px; color: var(--text-soft); font-weight: 600; margin-top: 4px; }
+
+/* ── Feed ── */
+.feed-item { background: var(--bg-card); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.feed-actions { display: flex; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.feed-action {
+  font-size: 12px; color: var(--text-soft); cursor: pointer;
+  padding: 4px 9px; border-radius: 7px;
+  transition: background 0.18s; font-weight: 600;
+}
+.feed-action:hover { background: var(--leaf-bg); color: var(--leaf); }
+
+/* ── Journal ── */
+.journal-entry {
+  border-left: 3px solid var(--leaf-light);
+  padding: 11px 14px; border-radius: 0 10px 10px 0;
+  background: #F4FBF6; margin-bottom: 10px;
+}
+.j-date  { font-size: 10.5px; color: var(--text-soft); margin-bottom: 3px; font-weight: 600; }
+.j-mood  { font-size: 12px; font-weight: 700; color: var(--leaf); margin-bottom: 5px; }
+.j-text  { font-size: 13px; line-height: 1.65; color: var(--text-mid); }
+
+/* ── Shop tile ── */
+.shop-tile {
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 15px 12px; text-align: center;
+  cursor: pointer; transition: all 0.2s;
+}
+.shop-tile:hover { border-color: var(--gold-border); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.shop-emoji  { font-size: 34px; display: block; margin-bottom: 7px; }
+.shop-name   { font-size: 12px; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
+.shop-price  { font-size: 12px; font-weight: 700; color: var(--gold-dark); }
+.shop-stock  { font-size: 10.5px; color: var(--text-soft); margin: 3px 0 9px; }
+
+/* ── User row ── */
+.user-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 10px;
+  cursor: pointer; transition: background 0.18s;
+  border: 1px solid transparent;
+}
+.user-row:hover { background: #F4FBF6; border-color: var(--border); }
+
+/* ── Doc row ── */
+.doc-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1.5px solid var(--border);
+  border-radius: 10px; margin-bottom: 8px;
+  background: var(--bg-card);
+}
+
+/* ── AI hint ── */
+.ai-hint {
+  background: var(--leaf-bg); border-left: 3px solid var(--leaf-light);
+  border-radius: 0 9px 9px 0; padding: 10px 13px;
+  font-size: 12.5px; color: var(--text-mid); line-height: 1.65;
+}
+.ai-hint b { color: var(--leaf); }
+
+/* ── Stat tile ── */
+.stat-tile {
+  background: #F8FBF8; border-radius: 10px;
+  padding: 12px; text-align: center;
+}
+.stat-num   { font-size: 22px; font-weight: 800; line-height: 1; }
+.stat-label { font-size: 10.5px; color: var(--text-soft); margin-top: 3px; font-weight: 600; }
+
+/* ── Chat ── */
+.chat-header {
+  padding: 13px 20px; background: var(--leaf-bg);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 11px;
+  flex-shrink: 0;
+}
+.souly-av {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--leaf); display: flex; align-items: center;
+  justify-content: center; color: #fff; font-size: 18px; flex-shrink: 0;
+}
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.msg { display: flex; gap: 8px; max-width: 82%; }
+.msg.user { flex-direction: row-reverse; align-self: flex-end; }
+.msg-bubble { padding: 10px 14px; border-radius: 13px; font-size: 13px; line-height: 1.65; }
+.msg.ai   .msg-bubble { background: var(--leaf-bg); color: var(--text-dark); border-bottom-left-radius: 4px; }
+.msg.user .msg-bubble { background: var(--leaf); color: #fff; border-bottom-right-radius: 4px; }
+.msg-time { font-size: 10px; color: var(--text-soft); margin-top: 3px; }
+.chat-input-row {
+  padding: 13px 18px; border-top: 1px solid var(--border);
+  display: flex; gap: 9px; align-items: flex-end;
+  background: var(--bg-card); flex-shrink: 0;
+}
+.typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--leaf); animation: blink 1.3s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.22s; }
+.typing-dot:nth-child(3) { animation-delay: 0.44s; }
+@keyframes blink { 0%,80%,100% { transform: scale(0); } 40% { transform: scale(1); } }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  animation: fadein 0.18s ease;
+}
+.modal-box {
+  background: var(--bg-card); border-radius: 18px;
+  padding: 26px 28px; width: 480px; max-width: calc(100vw - 32px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+  animation: popIn 0.2s ease;
+}
+.modal-title { font-family: 'Lora', serif; font-size: 17px; font-weight: 600; color: var(--text-dark); margin-bottom: 16px; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ── Mood selector ── */
+.mood-chip {
+  padding: 5px 12px; border-radius: 20px;
+  border: 1.5px solid var(--border); cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text-mid);
+  transition: all 0.18s; user-select: none;
+}
+.mood-chip.sel { background: var(--leaf); color: #fff; border-color: var(--leaf); }
+
+/* ── Notification ── */
+.notif {
+  position: fixed; top: 18px; right: 18px;
+  background: var(--leaf); color: #fff;
+  padding: 11px 18px; border-radius: 11px;
+  font-size: 13px; font-weight: 700; z-index: 9999;
+  box-shadow: 0 4px 18px rgba(74,155,111,0.38);
+  animation: slideIn 0.28s ease;
+}
+@keyframes slideIn { from { transform: translateX(80px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ── Leaderboard ── */
+.rank-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.rank-row:last-child { border-bottom: none; }
+.rank-num { width: 24px; text-align: center; font-weight: 800; }
+
+/* ── Responsive: mobile ── */
+@media (max-width: 720px) {
+  .sidebar { transform: translateX(-100%); transition: transform 0.26s; }
+  .sidebar.open { transform: translateX(0); }
+  .main { margin-left: 0; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .topbar { padding: 0 14px; }
+  .page-content { padding: 14px; }
+  .hamburger { display: flex !important; }
+}
+.hamburger {
+  display: none; width: 36px; height: 36px;
+  flex-direction: column; justify-content: center; gap: 5px;
+  cursor: pointer; padding: 6px;
+}
+.hamburger span { display: block; height: 2px; background: var(--text-dark); border-radius: 2px; transition: all 0.2s; }
+.mobile-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.3); z-index: 150;
+}
+.mobile-overlay.show { display: block; }
+</style>
+</head>
+
+<body>
+
+<!-- ==========================================
+     PHẦN 2: HTML LAYOUT
+     ========================================== -->
+<div class="app" id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-row">
+        <div class="logo-icon">
+          <!-- Leaf icon -->
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 2C10 2 5.5 5.5 5.5 11C5.5 13.76 7.5 16 10 16C12.5 16 14.5 13.76 14.5 11C14.5 5.5 10 2 10 2Z" fill="white" opacity="0.95"/>
+            <path d="M10 8V16" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M10 11L8 9" stroke="rgba(255,255,255,0.6)" stroke-width="1.3" stroke-linecap="round"/>
+            <path d="M10 12.5L12 10.5" stroke="rgba(255,255,255,0.6)" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <div class="logo-name">Humai</div>
+          <div class="logo-tagline">Sống Biết Ơn</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="nav" id="main-nav">
+      <div class="nav-section">Khu vườn</div>
+      <div class="nav-item active" data-page="feed" onclick="gotoPage('feed')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.6"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.6"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1.5" fill="currentColor" opacity="0.35"/></svg></span>
+        Trang chủ
+      </div>
+      <div class="nav-item" data-page="garden" onclick="gotoPage('garden')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2C8 2 4.5 5.5 4.5 10C4.5 12.5 6 14.5 8 14.5C10 14.5 11.5 12.5 11.5 10C11.5 5.5 8 2 8 2Z" fill="currentColor" opacity="0.85"/></svg></span>
+        Khu vườn tôi
+        <span class="nav-badge" id="nb-garden">✨</span>
+      </div>
+      <div class="nav-item" data-page="tasks" onclick="gotoPage('tasks')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="3.5" width="11" height="1.6" rx="0.8" fill="currentColor"/><rect x="1" y="7.5" width="9" height="1.6" rx="0.8" fill="currentColor" opacity="0.7"/><rect x="1" y="11.5" width="6.5" height="1.6" rx="0.8" fill="currentColor" opacity="0.45"/><circle cx="14" cy="12" r="2.2" fill="currentColor" opacity="0.9"/></svg></span>
+        Nhiệm vụ
+        <span class="nav-badge" id="nb-tasks">4</span>
+      </div>
+
+      <div class="nav-section">Kết nối</div>
+      <div class="nav-item" data-page="social" onclick="gotoPage('social')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5.5" r="3.2" fill="currentColor" opacity="0.8"/><circle cx="11" cy="6.5" r="2.4" fill="currentColor" opacity="0.5"/><path d="M1 14C1 11.8 3 10 5.5 10C8 10 10 11.8 10 14" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.8"/></svg></span>
+        Cộng đồng
+      </div>
+      <div class="nav-item" data-page="journal" onclick="gotoPage('journal')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="12" height="14" rx="2" stroke="currentColor" stroke-width="1.4" fill="none"/><line x1="5" y1="5.5" x2="11" y2="5.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><line x1="5" y1="8.5" x2="11" y2="8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.6"/><line x1="5" y1="11.5" x2="8.5" y2="11.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity="0.4"/></svg></span>
+        Nhật ký tâm thức
+      </div>
+
+      <div class="nav-section">Tài nguyên</div>
+      <div class="nav-item" data-page="shop" onclick="gotoPage('shop')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 3.5h12L12.5 11H3.5L2 3.5Z" stroke="currentColor" stroke-width="1.4" fill="none" opacity="0.85"/><circle cx="6" cy="13.5" r="1.3" fill="currentColor"/><circle cx="11" cy="13.5" r="1.3" fill="currentColor"/></svg></span>
+        Gian hàng
+      </div>
+      <div class="nav-item" data-page="chat" onclick="gotoPage('chat')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v10H9.5L6 15V12H2V2Z" stroke="currentColor" stroke-width="1.4" fill="none"/><circle cx="5.5" cy="7" r="1.1" fill="currentColor" opacity="0.7"/><circle cx="8" cy="7" r="1.1" fill="currentColor" opacity="0.7"/><circle cx="10.5" cy="7" r="1.1" fill="currentColor" opacity="0.7"/></svg></span>
+        Souly AI
+      </div>
+      <div class="nav-item" data-page="rag" onclick="gotoPage('rag')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="1" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4" fill="none" opacity="0.8"/><rect x="5" y="4" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4" fill="none" opacity="0.45"/></svg></span>
+        Kho tri thức
+      </div>
+      <div class="nav-item" data-page="profile" onclick="gotoPage('profile')">
+        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="3.2" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M2 15C2 12 4.7 9.7 8 9.7C11.3 9.7 14 12 14 15" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></span>
+        Hồ sơ
+      </div>
+    </nav>
+
+    <div class="me-strip">
+      <div class="av av-md" style="cursor:pointer" onclick="gotoPage('profile')">AN</div>
+      <div>
+        <div class="me-name" id="me-name">An Nguyễn</div>
+        <div class="me-pts" id="me-pts">✦ 1,240 điểm</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MOBILE OVERLAY -->
+  <div class="mobile-overlay" id="mobile-overlay" onclick="closeSidebar()"></div>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="flex items-c gap-10">
+        <div class="hamburger" onclick="toggleSidebar()">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="topbar-title" id="page-title">Trang chủ</div>
+      </div>
+      <div class="flex items-c gap-8">
+        <div class="pts-pill" id="pts-topbar">✦ 1,240 điểm</div>
+        <div class="av av-sm" onclick="gotoPage('profile')">AN</div>
+      </div>
+    </div>
+
+    <!-- Pages -->
+    <div class="page-content" id="page-feed"></div>
+    <div class="page-content hidden" id="page-garden"></div>
+    <div class="page-content hidden" id="page-tasks"></div>
+    <div class="page-content hidden" id="page-journal"></div>
+    <div class="page-content hidden" id="page-shop"></div>
+    <div class="page-content hidden" id="page-social"></div>
+    <div class="page-full   hidden" id="page-chat"></div>
+    <div class="page-content hidden" id="page-rag"></div>
+    <div class="page-content hidden" id="page-profile"></div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="modal-overlay" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()" id="modal-body"></div>
+</div>
+
+<!-- ==========================================
+     PHẦN 3: JAVASCRIPT — STATE & CORE
+     ========================================== -->
+<script>
+
+/* ─── CONFIG ─────────────────────────────────────────
+   Để Souly AI hoạt động trên production, bạn cần:
+   1. Tạo một backend proxy nhỏ (Node.js/Python/etc.)
+      nhận request từ frontend và forward đến Anthropic API
+      kèm API key (để bảo mật key trên server).
+   2. Thay API_ENDPOINT bên dưới bằng URL proxy của bạn.
+   3. Nếu chạy local thử nghiệm, có thể dùng trực tiếp
+      nhưng KHÔNG nên để API key trong file HTML production.
+   ─────────────────────────────────────────────────── */
+const CONFIG = {
+  API_ENDPOINT: 'https://api.anthropic.com/v1/messages',
+  MODEL: 'claude-sonnet-4-20250514',
+  MAX_TOKENS: 1000,
+  // API_KEY: '' // ← Để trống; dùng proxy backend
+};
+
+/* ─── STATE ────────────────────────────────────────── */
+const S = {
+  pts: 1240,
+  user: {
+    id: 'u1', name: 'An Nguyễn', initials: 'AN',
+    bio: 'Đang học cách sống tử tế hơn mỗi ngày 🌱',
+    level: 'Người Biết Ơn', streak: 7,
+    persona: 'Người truyền cảm hứng',
+    skills: ['Lãnh đạo', 'Đồng cảm', 'Sáng tạo'],
+    status: 'online', journalCount: 14, friendCount: 8,
+  },
+  tasks: [
+    { id: 't1', title: 'Viết lời cảm ơn cho đồng nghiệp', pts: 50, cat: 'Kết nối', done: false, nudge: 'Souly: Bạn chưa cảm ơn ai hôm nay!' },
+    { id: 't2', title: 'Chia sẻ câu chuyện truyền cảm hứng', pts: 40, cat: 'Lan toả', done: false, nudge: '' },
+    { id: 't3', title: 'Tặng quà nhỏ cho bạn bè', pts: 80, cat: 'Tặng cho', done: true, nudge: '' },
+    { id: 't4', title: 'Viết nhật ký tâm thức hôm nay', pts: 30, cat: 'Nội tâm', done: false, nudge: 'Souly: Cảm xúc hôm nay của bạn thế nào?' },
+    { id: 't5', title: 'Giúp đồng nghiệp giải quyết vấn đề', pts: 60, cat: 'Hỗ trợ', done: false, nudge: '' },
+    { id: 't6', title: 'Thiền 10 phút và phản chiếu', pts: 25, cat: 'Nội tâm', done: true, nudge: '' },
+  ],
+  journals: [
+    { id: 'j1', date: '25/04/2026', mood: '🌸 Bình an', text: 'Hôm nay tôi cảm thấy biết ơn vì đồng nghiệp đã giúp tôi hoàn thành dự án đúng hạn. Thật sự rất xúc động.', kw: ['biết ơn', 'đội nhóm', 'hoàn thành'] },
+    { id: 'j2', date: '24/04/2026', mood: '🌻 Phấn khởi', text: 'Chia sẻ câu chuyện của mình trong buổi họp sáng. Mọi người đều lắng nghe và phản hồi tích cực.', kw: ['chia sẻ', 'kết nối', 'tự tin'] },
+    { id: 'j3', date: '23/04/2026', mood: '🍂 Trăn trở', text: 'Hôm nay hơi áp lực, nhưng nhớ lại những điều mình đang cố gắng vì thì thấy nhẹ hơn rất nhiều.', kw: ['kiên nhẫn', 'mục tiêu', 'vượt qua'] },
+  ],
+  users: [
+    { id: 'u2', name: 'Minh Trần', initials: 'MT', pts: 980, status: 'online', friend: true, bio: 'Lan tỏa năng lượng tích cực', persona: 'Người kết nối', color: '#5A9E58' },
+    { id: 'u3', name: 'Linh Phạm', initials: 'LP', pts: 1560, status: 'away', friend: true, bio: 'Lắng nghe là kỹ năng quý nhất', persona: 'Người lắng nghe', color: '#7B6EAF' },
+    { id: 'u4', name: 'Hùng Lê', initials: 'HL', pts: 760, status: 'offline', friend: false, bio: 'Học hỏi không ngừng nghỉ', persona: 'Người học hỏi', color: '#D08040' },
+    { id: 'u5', name: 'Mai Vũ', initials: 'MV', pts: 1120, status: 'online', friend: true, bio: 'Mỗi ngày là cơ hội mới', persona: 'Người truyền cảm hứng', color: '#C06070' },
+    { id: 'u6', name: 'Đức Ngô', initials: 'ĐN', pts: 890, status: 'online', friend: false, bio: 'Xây dựng văn hóa tích cực', persona: 'Người xây dựng', color: '#3A7A8A' },
+  ],
+  shop: [
+    { id: 's1', name: 'Cà phê buổi sáng', e: '☕', price: 200, stock: 10 },
+    { id: 's2', name: 'Voucher ăn trưa', e: '🍜', price: 500, stock: 5 },
+    { id: 's3', name: 'Ngày nghỉ thêm', e: '🏖️', price: 2000, stock: 3 },
+    { id: 's4', name: 'Khoá học online', e: '📚', price: 800, stock: 20 },
+    { id: 's5', name: 'Huy hiệu Biết Ơn', e: '🏅', price: 300, stock: 99 },
+    { id: 's6', name: 'Coaching 1-1', e: '🎯', price: 1500, stock: 2 },
+    { id: 's7', name: 'Thẻ quà tặng', e: '🎀', price: 400, stock: 15 },
+    { id: 's8', name: 'Công nhận xuất sắc', e: '⭐', price: 600, stock: 8 },
+  ],
+  rag: [
+    { id: 'd1', name: 'Văn hoá công ty Humai', type: 'pdf', size: '2.4 MB', date: '20/04/2026', status: 'indexed' },
+    { id: 'd2', name: 'Quy trình onboarding nhân viên', type: 'docx', size: '1.1 MB', date: '18/04/2026', status: 'indexed' },
+    { id: 'd3', name: 'Chính sách phúc lợi 2026', type: 'pdf', size: '3.2 MB', date: '15/04/2026', status: 'indexed' },
+    { id: 'd4', name: 'OKR & KPI Q2/2026', type: 'xlsx', size: '0.8 MB', date: '01/04/2026', status: 'indexed' },
+    { id: 'd5', name: 'Sổ tay lãnh đạo tử tế', type: 'pdf', size: '4.5 MB', date: '10/03/2026', status: 'indexing' },
+  ],
+  plants: [
+    { name: 'Cây Biết Ơn', desc: 'Lớn lên qua nhật ký', prog: 72, pts: 860, tasks: 18, color: ['#4A9B6F','#7CC89A','#F4A7B9','#FFD054'] },
+    { name: 'Hoa Tử Tế', desc: 'Nở khi tặng quà', prog: 45, pts: 320, tasks: 8, color: ['#E87CB0','#F4B8D0','#F8D0E8','#FFD054'] },
+    { name: 'Cây Kết Nối', desc: 'Sinh ra từ tình bạn', prog: 88, pts: 1100, tasks: 22, color: ['#5A8EAF','#88B8D8','#B0D4F8','#FFD054'] },
+    { name: 'Mầm Lắng Nghe', desc: 'Lớn từ trò chuyện', prog: 30, pts: 180, tasks: 5, color: ['#9A7AC8','#C0A8E8','#E0C8F8','#FFD054'] },
+    { name: 'Cây Kiên Nhẫn', desc: 'Chậm mà bền vững', prog: 55, pts: 640, tasks: 13, color: ['#C87840','#E8A870','#F4C8A0','#FFD054'] },
+    { name: 'Hoa Truyền Cảm', desc: 'Lan toả yêu thương', prog: 20, pts: 90, tasks: 3, color: ['#58A870','#88C898','#C8E0A0','#FFD054'] },
+  ],
+  feed: [
+    { id: 'f1', user: { name: 'Linh Phạm', ini: 'LP', col: '#7B6EAF' }, action: 'hoàn thành nhiệm vụ', detail: '"Tặng quà nhỏ cho đồng nghiệp"', pts: '+80', time: '5 phút trước', likes: 5 },
+    { id: 'f2', user: { name: 'Minh Trần', ini: 'MT', col: '#5A9E58' }, action: 'viết nhật ký tâm thức', detail: 'với tâm trạng "Phấn khởi" hôm nay', pts: '', time: '12 phút trước', likes: 3 },
+    { id: 'f3', user: { name: 'Mai Vũ', ini: 'MV', col: '#C06070' }, action: 'tặng điểm cho', detail: 'Hùng Lê: "Cảm ơn bạn đã hỗ trợ dự án!"', pts: '-100', time: '30 phút trước', likes: 7 },
+  ],
+  chat: [],
+  tx: [],
+  currentPage: 'feed',
+  chatBusy: false,
+};
+
+/* ─── CORE UTILS ────────────────────────────────────── */
+function fmtPts(n) { return n.toLocaleString('vi-VN'); }
+
+function addPoints(delta, reason) {
+  S.pts += delta;
+  const label = '✦ ' + fmtPts(S.pts) + ' điểm';
+  document.getElementById('me-pts').textContent = label;
+  document.getElementById('pts-topbar').textContent = label;
+  S.tx.push({ date: new Date().toLocaleDateString('vi-VN'), d: delta, r: reason });
+  showToast((delta > 0 ? '+' + delta : delta) + ' điểm — ' + reason);
+}
+
+function showToast(msg, isError = false) {
+  document.querySelectorAll('.notif').forEach(e => e.remove());
+  const n = document.createElement('div');
+  n.className = 'notif';
+  if (isError) n.style.background = '#C04040';
+  n.textContent = msg;
+  document.body.appendChild(n);
+  setTimeout(() => n.remove(), 3200);
+}
+
+function openModal(html) {
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const ov = document.getElementById('mobile-overlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('show');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('mobile-overlay').classList.remove('show');
+}
+
+/* ─── NAVIGATION ─────────────────────────────────────── */
+const PAGE_TITLES = {
+  feed: 'Trang chủ', garden: 'Khu vườn của tôi',
+  tasks: 'Nhiệm vụ', journal: 'Nhật ký tâm thức',
+  shop: 'Gian hàng', social: 'Cộng đồng',
+  chat: 'Souly AI', rag: 'Kho tri thức RAG',
+  profile: 'Hồ sơ cá nhân',
+};
+
+function gotoPage(p) {
+  closeSidebar();
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-' + p).classList.remove('hidden');
+  const ni = document.querySelector(`[data-page="${p}"]`);
+  if (ni) ni.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[p] || p;
+  S.currentPage = p;
+  const renders = {
+    feed: renderFeed, garden: renderGarden, tasks: renderTasks,
+    journal: renderJournal, shop: renderShop, social: renderSocial,
+    chat: renderChat, rag: renderRAG, profile: renderProfile,
+  };
+  if (renders[p]) renders[p]();
+}
+
+/* ==========================================
+   PHẦN 4: SVG GARDEN RENDERING
+   ========================================== */
+function svgTree(x, y, h, c1, c2, c3) {
+  const tw = 8;
+  return `<rect x="${x - tw/2}" y="${y - h*0.38}" width="${tw}" height="${h*0.38}" rx="3" fill="#8B6040"/>
+  <ellipse cx="${x}" cy="${y - h*0.82}" rx="${h*0.46}" ry="${h*0.38}" fill="${c3}" opacity="0.65"/>
+  <ellipse cx="${x-10}" cy="${y - h*0.65}" rx="${h*0.37}" ry="${h*0.3}" fill="${c1}" opacity="0.9"/>
+  <ellipse cx="${x+12}" cy="${y - h*0.7}" rx="${h*0.34}" ry="${h*0.28}" fill="${c2}" opacity="0.85"/>
+  <ellipse cx="${x}" cy="${y - h*0.95}" rx="${h*0.28}" ry="${h*0.23}" fill="${c2}" opacity="0.78"/>`;
+}
+function svgSapling(x, y, h, c1, c2) {
+  return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y-h}" stroke="#8B6040" stroke-width="2.2" stroke-linecap="round"/>
+  <ellipse cx="${x-7}" cy="${y-h*0.6}" rx="9" ry="6.5" fill="${c1}" opacity="0.85"/>
+  <ellipse cx="${x+6}" cy="${y-h*0.78}" rx="8" ry="5.5" fill="${c2}" opacity="0.8"/>`;
+}
+function svgFlower(x, y, col, cc) {
+  return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y-28}" stroke="#5A9E58" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="${x}" cy="${y-30}" r="7" fill="${col}" opacity="0.9"/>
+  <circle cx="${x}" cy="${y-30}" r="3.2" fill="${cc}"/>`;
+}
+function svgBush(x, y, col) {
+  return `<ellipse cx="${x}" cy="${y}" rx="20" ry="13" fill="${col}" opacity="0.75"/>
+  <ellipse cx="${x-13}" cy="${y+3}" rx="13" ry="9.5" fill="${col}" opacity="0.65"/>
+  <ellipse cx="${x+13}" cy="${y+3}" rx="13" ry="9.5" fill="${col}" opacity="0.65"/>`;
+}
+function svgCloud(x, y) {
+  return `<ellipse cx="${x}" cy="${y}" rx="26" ry="14" fill="white" opacity="0.68"/>
+  <ellipse cx="${x-17}" cy="${y+4}" rx="17" ry="11" fill="white" opacity="0.58"/>
+  <ellipse cx="${x+17}" cy="${y+4}" rx="19" ry="12" fill="white" opacity="0.63"/>`;
+}
+function svgSun(x, y, r) {
+  let rays = '';
+  for (let i = 0; i < 8; i++) {
+    const a = i * 45 * Math.PI / 180;
+    rays += `<line x1="${(x + Math.cos(a)*(r+3)).toFixed(1)}" y1="${(y + Math.sin(a)*(r+3)).toFixed(1)}" x2="${(x + Math.cos(a)*(r+9)).toFixed(1)}" y2="${(y + Math.sin(a)*(r+9)).toFixed(1)}" stroke="#E8B84B" stroke-width="2" stroke-linecap="round"/>`;
+  }
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="#F4D47A" opacity="0.9"/>${rays}`;
+}
+function svgMtn(x, y, w, h, col) {
+  return `<polygon points="${x},${y} ${x+w/2},${y-h} ${x+w},${y}" fill="${col}" opacity="0.28"/>`;
+}
+function svgBird(x, y) {
+  return `<path d="M${x} ${y} Q${x-8} ${y-6} ${x-15} ${y}" stroke="#5A7A6A" stroke-width="1.4" fill="none"/>
+  <path d="M${x} ${y} Q${x+8} ${y-6} ${x+15} ${y}" stroke="#5A7A6A" stroke-width="1.4" fill="none"/>`;
+}
+
+function gardenSceneSVG(W = 660, H = 220) {
+  const gY = Math.floor(H * 0.72);
+  let s = `<svg width="100%" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  s += `<rect width="${W}" height="${H}" fill="#E8F4F0"/>`;
+  s += `<rect y="${gY - 10}" width="${W}" height="${H - gY + 10}" fill="#C4E4B8"/>`;
+  s += `<rect y="${gY + 10}" width="${W}" height="${H - gY - 10}" fill="#B4D8A4"/>`;
+  s += svgMtn(W*0.04, gY, W*0.28, H*0.52, '#9AC8A0');
+  s += svgMtn(W*0.68, gY, W*0.30, H*0.42, '#98B890');
+  s += svgSun(W*0.88, H*0.15, 16);
+  s += svgCloud(W*0.22, H*0.2);
+  s += svgCloud(W*0.62, H*0.13);
+  s += svgBird(W*0.42, H*0.11);
+  s += svgBird(W*0.50, H*0.08);
+  // Trees
+  s += svgTree(55,  gY, 92, '#4A9B6F', '#7CC89A', '#2D6B4A');
+  s += svgTree(580, gY, 76, '#5A8E5F', '#88C878', '#2A5A38');
+  s += svgTree(130, gY, 52, '#6DC28A', '#9ADBA8', '#3A8A5A');
+  s += svgTree(490, gY, 56, '#58A870', '#7DCCA0', '#2E6A42');
+  // Bushes
+  s += svgBush(310, gY, '#7CC8A0');
+  s += svgBush(210, gY, '#88D4A0');
+  // Saplings
+  s += svgSapling(220, gY, 42, '#5A9E58', '#88C878');
+  s += svgSapling(370, gY, 46, '#4A9B6F', '#7CC89A');
+  s += svgSapling(430, gY, 36, '#68B078', '#90D0A0');
+  // Flowers
+  [[168,gY,'#F4A7B9','#FFD054'],[295,gY,'#FBBF7C','#E87C3C'],
+   [338,gY,'#B0D4F8','#FFD054'],[458,gY,'#F4A7B9','#FFD054'],
+   [548,gY,'#C8E0A0','#FFD054']].forEach(([fx,fy,fc,cc]) => s += svgFlower(fx,fy,fc,cc));
+  // Ground line
+  s += `<line x1="0" y1="${gY}" x2="${W}" y2="${gY}" stroke="#A8C8A0" stroke-width="1" opacity="0.5"/>`;
+  s += '</svg>';
+  return s;
+}
+
+function plantSVG(prog, colArr) {
+  const W = 100, H = 92, gY = H - 14;
+  const [c1, c2, c3, c4] = colArr;
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  const x = W / 2;
+  if (prog < 20) {
+    s += `<circle cx="${x}" cy="${gY-4}" r="5" fill="${c1}" opacity="0.7"/>`;
+    s += `<line x1="${x}" y1="${gY}" x2="${x}" y2="${gY-8}" stroke="${c1}" stroke-width="2"/>`;
+  } else if (prog < 45) {
+    const h = 28 + prog * 0.35;
+    s += svgSapling(x, gY, h, c1, c2);
+    if (prog > 30) s += svgFlower(x + 5, gY - h + 3, c3, c4);
+  } else if (prog < 75) {
+    const h = 44 + prog * 0.38;
+    s += `<rect x="${x-4}" y="${gY-h*0.36}" width="8" height="${h*0.36}" rx="3" fill="#8B6040"/>`;
+    s += `<ellipse cx="${x}" cy="${gY-h*0.77}" rx="${h*0.4}" ry="${h*0.33}" fill="${c1}" opacity="0.72"/>`;
+    s += `<ellipse cx="${x-8}" cy="${gY-h*0.62}" rx="${h*0.33}" ry="${h*0.27}" fill="${c2}" opacity="0.9"/>`;
+    s += `<ellipse cx="${x+9}" cy="${gY-h*0.67}" rx="${h*0.3}" ry="${h*0.25}" fill="${c2}" opacity="0.82"/>`;
+    s += svgFlower(x-11, gY-h*0.27, c3, c4);
+  } else {
+    const h = 62 + prog * 0.12;
+    s += `<rect x="${x-5}" y="${gY-h*0.38}" width="10" height="${h*0.38}" rx="4" fill="#7A5030"/>`;
+    s += `<ellipse cx="${x}" cy="${gY-h*0.83}" rx="${h*0.46}" ry="${h*0.38}" fill="${c1}" opacity="0.68"/>`;
+    s += `<ellipse cx="${x-12}" cy="${gY-h*0.67}" rx="${h*0.37}" ry="${h*0.3}" fill="${c2}" opacity="0.88"/>`;
+    s += `<ellipse cx="${x+13}" cy="${gY-h*0.73}" rx="${h*0.34}" ry="${h*0.28}" fill="${c1}" opacity="0.82"/>`;
+    s += `<ellipse cx="${x}" cy="${gY-h*0.96}" rx="${h*0.27}" ry="${h*0.22}" fill="${c2}" opacity="0.78"/>`;
+    s += svgFlower(x-15, gY-h*0.32, c3, c4);
+    s += svgFlower(x+12, gY-h*0.27, c3, c4);
+  }
+  s += `<rect y="${gY}" width="${W}" height="${H-gY}" fill="#C8D8B0" opacity="0.45"/>`;
+  s += '</svg>';
+  return s;
+}
+
+/* ==========================================
+   PHẦN 5: PAGE RENDERERS
+   ========================================== */
+
+/* ── FEED ── */
+function renderFeed() {
+  const p = document.getElementById('page-feed');
+  const pending = S.tasks.filter(t => !t.done);
+  const nudge = S.tasks.find(t => !t.done && t.nudge);
+  p.innerHTML = `
+    <div class="garden-hero mb-20">${gardenSceneSVG()}</div>
+    <div class="grid-2 mb-20">
+      <div class="card">
+        <div class="card-title">Khu vườn của bạn hôm nay</div>
+        <div style="font-size:26px;font-weight:800;color:var(--leaf)">${fmtPts(S.pts)}<span style="font-size:13px;font-weight:600;color:var(--text-soft);margin-left:6px">điểm biết ơn</span></div>
+        <div class="flex flex-wrap gap-6 mt-12">
+          <span class="badge badge-green">🔥 ${S.user.streak} ngày liên tiếp</span>
+          <span class="badge badge-gold">✅ ${S.tasks.filter(t=>t.done).length}/${S.tasks.length} nhiệm vụ</span>
+          <span class="badge badge-teal">🌱 ${S.plants.length} loài cây</span>
+        </div>
+      </div>
+      <div class="card card-green">
+        <div class="card-title" style="color:var(--leaf)">Souly nhắc nhở</div>
+        ${nudge
+          ? `<div class="text-sm text-mid mb-8" style="line-height:1.6">${nudge.nudge}</div>
+             <button class="btn btn-leaf btn-sm" onclick="gotoPage('tasks')">Xem nhiệm vụ →</button>`
+          : `<div class="text-sm text-mid">Tuyệt vời! Bạn không còn nhiệm vụ tồn đọng hôm nay 🎉</div>`}
+      </div>
+    </div>
+    <div class="card-title">Hoạt động cộng đồng</div>
+    ${S.feed.map(f => `
+      <div class="feed-item">
+        <div class="flex gap-10 items-start">
+          <div class="av av-sm" style="background:${f.user.col};flex-shrink:0">${f.user.ini}</div>
+          <div class="flex-1">
+            <div class="text-base"><b>${f.user.name}</b> <span class="text-soft">${f.action}</span> ${f.detail}
+              ${f.pts ? `<span class="badge ${f.pts.includes('+') ? 'badge-green' : 'badge-gold'}" style="margin-left:4px">${f.pts} điểm</span>` : ''}
+            </div>
+            <div class="text-xs text-soft mt-8">${f.time}</div>
+          </div>
+        </div>
+        <div class="feed-actions">
+          <div class="feed-action" onclick="this.innerHTML='❤️ '+(parseInt(this.innerHTML.match(/\\d+/)[0])+1)+' thích'">❤️ ${f.likes} thích</div>
+          <div class="feed-action">💬 Bình luận</div>
+          <div class="feed-action" onclick="gotoPage('shop')">🌿 Tặng điểm</div>
+        </div>
+      </div>
+    `).join('')}`;
+}
+
+/* ── GARDEN ── */
+function renderGarden() {
+  const p = document.getElementById('page-garden');
+  p.innerHTML = `
+    <div class="garden-hero mb-20">${gardenSceneSVG(660, 260)}</div>
+    <div class="card-title">Bộ sưu tập cây của bạn (${S.plants.length} loài)</div>
+    <div class="grid-plants">
+      ${S.plants.map((pl, i) => `
+        <div class="plant-card" onclick="showPlantDetail(${i})">
+          <div class="plant-svg-wrap">${plantSVG(pl.prog, pl.color)}</div>
+          <div class="plant-name">${pl.name}</div>
+          <div class="plant-desc">${pl.desc}</div>
+          <div class="progress mb-8"><div class="progress-fill" style="width:${pl.prog}%"></div></div>
+          <div class="plant-pts">${pl.prog}% trưởng thành · ✦ ${pl.pts}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function showPlantDetail(i) {
+  const pl = S.plants[i];
+  openModal(`
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="display:flex;justify-content:center;margin-bottom:8px">${plantSVG(pl.prog, pl.color)}</div>
+      <div class="modal-title" style="text-align:center">${pl.name}</div>
+      <div class="text-sm text-soft mb-12">${pl.desc}</div>
+      <div class="flex jcen flex-wrap gap-6 mb-12">
+        <span class="badge badge-green">${pl.prog}% trưởng thành</span>
+        <span class="badge badge-gold">✦ ${pl.pts} điểm</span>
+        <span class="badge badge-teal">${pl.tasks} nhiệm vụ</span>
+      </div>
+      <div class="ai-hint">
+        <b>Để cây lớn thêm:</b> Hoàn thành thêm nhiệm vụ liên quan đến "${pl.name.toLowerCase()}" 
+        và viết nhật ký về chủ đề này để cây phát triển lên giai đoạn tiếp theo.
+      </div>
+    </div>
+    <div class="flex gap-8 mt-16">
+      <button class="btn btn-outline btn-sm flex-1" onclick="closeModal()">Đóng</button>
+      <button class="btn btn-leaf btn-sm flex-1" onclick="closeModal();gotoPage('tasks')">Xem nhiệm vụ →</button>
+    </div>
+  `);
+}
+
+/* ── TASKS ── */
+function renderTasks() {
+  const p = document.getElementById('page-tasks');
+  const pending = S.tasks.filter(t => !t.done);
+  const done    = S.tasks.filter(t =>  t.done);
+  const earnedToday = done.reduce((s, t) => s + t.pts, 0);
+  p.innerHTML = `
+    <div class="grid-2 mb-20">
+      <div class="card" style="text-align:center">
+        <div class="stat-num" style="color:var(--leaf)">${done.length}<span style="font-size:16px;color:var(--text-soft)">/${S.tasks.length}</span></div>
+        <div class="stat-label">Nhiệm vụ hoàn thành</div>
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="stat-num" style="color:var(--gold-dark)">${fmtPts(earnedToday)}</div>
+        <div class="stat-label">Điểm kiếm được hôm nay</div>
+      </div>
+    </div>
+    <div class="card-title">⏳ Chờ hoàn thành (${pending.length})</div>
+    ${pending.map(t => `
+      <div class="task-item" id="ti-${t.id}">
+        <div class="task-check" id="tc-${t.id}" onclick="completeTask('${t.id}')"></div>
+        <div class="flex-1">
+          <div class="text-base font-bold">${t.title}</div>
+          ${t.nudge ? `<div class="task-nudge">${t.nudge}</div>` : ''}
+          <div style="margin-top:4px"><span class="badge badge-soft">${t.cat}</span></div>
+        </div>
+        <div class="task-pts">+${t.pts} ✦</div>
+      </div>
+    `).join('')}
+    ${done.length ? `
+      <div class="card-title mt-20">✅ Đã hoàn thành (${done.length})</div>
+      ${done.map(t => `
+        <div class="task-item done">
+          <div class="task-check on">✓</div>
+          <div class="flex-1"><div class="text-base font-bold" style="text-decoration:line-through">${t.title}</div></div>
+          <div class="task-pts" style="opacity:0.5">+${t.pts} ✦</div>
+        </div>
+      `).join('')}
+    ` : ''}`;
+}
+
+function completeTask(id) {
+  const task = S.tasks.find(t => t.id === id);
+  if (!task || task.done) return;
+  task.done = true;
+  addPoints(task.pts, 'Hoàn thành: ' + task.title);
+  const remaining = S.tasks.filter(t => !t.done).length;
+  const nb = document.getElementById('nb-tasks');
+  if (nb) nb.textContent = remaining > 0 ? remaining : '';
+  const pl = S.plants[Math.floor(Math.random() * S.plants.length)];
+  pl.prog = Math.min(100, pl.prog + 5); pl.pts += task.pts; pl.tasks++;
+  S.feed.unshift({ id: 'f' + Date.now(), user: { name: S.user.name, ini: S.user.initials, col: '#4A9B6F' }, action: 'hoàn thành nhiệm vụ', detail: `"${task.title}"`, pts: '+' + task.pts, time: 'Vừa xong', likes: 0 });
+  renderTasks();
+}
+
+/* ── JOURNAL ── */
+function renderJournal() {
+  const p = document.getElementById('page-journal');
+  p.innerHTML = `
+    <div class="flex jbet mb-20">
+      <div></div>
+      <button class="btn btn-leaf" onclick="openNewJournal()">✍️ Viết nhật ký mới</button>
+    </div>
+    <div class="card mb-20">
+      <div class="card-title">Phân tích cảm xúc (AI)</div>
+      <div class="grid-2">
+        <div>
+          <div class="text-xs text-soft mb-8">Tâm trạng 7 ngày qua</div>
+          <div class="flex flex-wrap gap-6">
+            <span class="badge badge-green">Tích cực 67%</span>
+            <span class="badge badge-soft">Trung tính 20%</span>
+            <span class="badge badge-red">Tiêu cực 13%</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs text-soft mb-8">Từ khoá nổi bật</div>
+          <div class="flex flex-wrap gap-6">
+            ${['biết ơn','kết nối','chia sẻ','kiên nhẫn'].map(k => `<span class="badge badge-teal">${k}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="ai-hint mt-12"><b>Souly nhận thấy:</b> Bạn đang có xu hướng tích cực hơn trong tuần này. Cây Biết Ơn của bạn đang lớn mạnh!</div>
+    </div>
+    <div class="card-title">Nhật ký gần đây</div>
+    ${S.journals.map(j => `
+      <div class="journal-entry">
+        <div class="flex jbet mb-8">
+          <div class="j-date">${j.date}</div>
+          <div class="j-mood">${j.mood}</div>
+        </div>
+        <div class="j-text">${j.text}</div>
+        <div class="flex flex-wrap gap-6 mt-12">
+          ${j.kw.map(k => `<span class="badge badge-green">${k}</span>`).join('')}
+        </div>
+      </div>
+    `).join('')}`;
+}
+
+function openNewJournal() {
+  const moods = ['🌸 Bình an', '🌻 Phấn khởi', '🌿 Biết ơn', '🍂 Trăn trở', '⛅ Căng thẳng'];
+  openModal(`
+    <div class="modal-title">✍️ Nhật ký tâm thức</div>
+    <div class="form-group">
+      <label>Tâm trạng hôm nay</label>
+      <div class="flex flex-wrap gap-6" id="mood-chips">
+        ${moods.map(m => `<div class="mood-chip" onclick="selectMood(this,'${m}')">${m}</div>`).join('')}
+      </div>
+      <input type="hidden" id="sel-mood" value="">
+    </div>
+    <div class="form-group">
+      <label>Điều bạn muốn chia sẻ hôm nay</label>
+      <textarea id="j-text" placeholder="Hôm nay tôi cảm thấy biết ơn vì..."></textarea>
+    </div>
+    <div class="flex gap-8 jbet">
+      <button class="btn btn-outline" onclick="closeModal()">Huỷ</button>
+      <button class="btn btn-leaf" onclick="saveJournal()">Lưu nhật ký (+30 điểm)</button>
+    </div>
+  `);
+}
+
+function selectMood(el, m) {
+  document.querySelectorAll('.mood-chip').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('sel-mood').value = m;
+}
+
+function saveJournal() {
+  const text = document.getElementById('j-text').value.trim();
+  const mood = document.getElementById('sel-mood').value || '🌸 Bình an';
+  if (!text) { showToast('Hãy viết nội dung nhật ký!', true); return; }
+  const kw = text.replace(/[^\wÀ-ỹ\s]/g, '').split(/\s+/).filter(w => w.length > 3).slice(0, 3);
+  S.journals.unshift({ id: 'j' + Date.now(), date: new Date().toLocaleDateString('vi-VN'), mood, text, kw });
+  S.user.journalCount++;
+  S.plants[0].prog = Math.min(100, S.plants[0].prog + 3);
+  addPoints(30, 'Viết nhật ký tâm thức');
+  closeModal(); renderJournal();
+}
+
+/* ── SHOP ── */
+function renderShop() {
+  const p = document.getElementById('page-shop');
+  p.innerHTML = `
+    <div class="card card-gold mb-20">
+      <div class="flex items-c gap-12">
+        <div style="font-size:34px">✦</div>
+        <div class="flex-1">
+          <div style="font-size:24px;font-weight:800;color:var(--gold-dark)">${fmtPts(S.pts)}</div>
+          <div class="text-xs text-soft">Điểm khả dụng để đổi quà</div>
+        </div>
+        <button class="btn btn-gold btn-sm" onclick="openGiftPoints()">🌿 Tặng điểm</button>
+      </div>
+    </div>
+    <div class="card-title">Đổi điểm lấy quà</div>
+    <div class="grid-auto mb-20">
+      ${S.shop.map(it => `
+        <div class="shop-tile">
+          <span class="shop-emoji">${it.e}</span>
+          <div class="shop-name">${it.name}</div>
+          <div class="shop-price">✦ ${fmtPts(it.price)}</div>
+          <div class="shop-stock">Còn ${it.stock} phần</div>
+          <button class="btn btn-gold btn-xs btn-w" onclick="redeemItem('${it.id}')">Đổi ngay</button>
+        </div>
+      `).join('')}
+    </div>
+    <div class="card-title">Lịch sử giao dịch</div>
+    ${S.tx.length === 0
+      ? '<div class="text-sm text-soft">Chưa có giao dịch nào.</div>'
+      : S.tx.slice(-8).reverse().map(t => `
+          <div class="flex jbet" style="padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">
+            <span class="text-mid">${t.r}</span>
+            <span style="font-weight:700;color:${t.d > 0 ? 'var(--leaf)' : '#C04040'}">${t.d > 0 ? '+' : ''}${t.d} ✦</span>
+          </div>`).join('')}`;
+}
+
+function redeemItem(id) {
+  const it = S.shop.find(x => x.id === id);
+  if (S.pts < it.price) { showToast('Không đủ điểm để đổi!', true); return; }
+  if (it.stock <= 0) { showToast('Hết hàng rồi!', true); return; }
+  openModal(`
+    <div style="text-align:center;padding:10px 0">
+      <div style="font-size:60px;margin-bottom:10px">${it.e}</div>
+      <div class="modal-title" style="text-align:center">${it.name}</div>
+      <div class="text-sm text-soft mb-16">Trừ <b style="color:var(--gold-dark)">${fmtPts(it.price)} điểm</b> · Còn lại: ${fmtPts(S.pts - it.price)} điểm</div>
+      <div class="flex gap-8 jcen">
+        <button class="btn btn-outline" onclick="closeModal()">Huỷ</button>
+        <button class="btn btn-gold" onclick="confirmRedeem('${it.id}')">Xác nhận đổi ✓</button>
+      </div>
+    </div>
+  `);
+}
+
+function confirmRedeem(id) {
+  const it = S.shop.find(x => x.id === id);
+  addPoints(-it.price, 'Đổi quà: ' + it.name);
+  it.stock--;
+  closeModal(); renderShop();
+}
+
+function openGiftPoints() {
+  const friends = S.users.filter(u => u.friend);
+  if (!friends.length) { showToast('Bạn chưa có bạn bè nào!', true); return; }
+  openModal(`
+    <div class="modal-title">🌿 Tặng điểm cho bạn bè</div>
+    <div class="form-group">
+      <label>Người nhận</label>
+      <select id="g-to">${friends.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select>
+    </div>
+    <div class="form-group">
+      <label>Số điểm</label>
+      <input type="number" id="g-amt" value="50" min="1" max="${S.pts}" placeholder="Nhập số điểm">
+    </div>
+    <div class="form-group">
+      <label>Lời nhắn</label>
+      <input type="text" id="g-msg" placeholder="Cảm ơn bạn vì...">
+    </div>
+    <div class="flex gap-8 jbet">
+      <button class="btn btn-outline" onclick="closeModal()">Huỷ</button>
+      <button class="btn btn-gold" onclick="confirmGiftPoints()">Tặng ngay 🎁</button>
+    </div>
+  `);
+}
+
+function confirmGiftPoints() {
+  const amt = parseInt(document.getElementById('g-amt').value);
+  const uid = document.getElementById('g-to').value;
+  const msg = document.getElementById('g-msg').value || 'Tặng bạn nhé!';
+  if (!amt || amt <= 0 || amt > S.pts) { showToast('Số điểm không hợp lệ!', true); return; }
+  const u = S.users.find(x => x.id === uid);
+  addPoints(-amt, 'Tặng điểm cho ' + u.name);
+  u.pts += amt;
+  S.feed.unshift({ id: 'f' + Date.now(), user: { name: S.user.name, ini: S.user.initials, col: '#4A9B6F' }, action: 'tặng điểm cho', detail: `${u.name}: "${msg}"`, pts: '-' + amt, time: 'Vừa xong', likes: 0 });
+  closeModal();
+}
+
+/* ── SOCIAL ── */
+function renderSocial() {
+  const p = document.getElementById('page-social');
+  const friends = S.users.filter(u => u.friend);
+  const discover = S.users.filter(u => !u.friend);
+  p.innerHTML = `
+    <div class="card-title">Bạn bè (${friends.length})</div>
+    ${friends.map(u => `
+      <div class="user-row">
+        <div class="av av-sm" style="background:${u.color}">${u.initials}</div>
+        <div class="flex-1">
+          <div class="flex items-c gap-6">
+            <div class="text-base font-bold">${u.name}</div>
+            <div class="status-dot s-${u.status}"></div>
+          </div>
+          <div class="text-xs text-soft">${u.bio}</div>
+          <div class="flex flex-wrap gap-6 mt-8">
+            <span class="badge badge-gold">✦ ${fmtPts(u.pts)}</span>
+            <span class="badge badge-teal">${u.persona}</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-6">
+          <button class="btn btn-gold btn-xs" onclick="openGiftTo('${u.id}')">🌿 Tặng</button>
+          <button class="btn btn-outline btn-xs" onclick="viewUserProfile('${u.id}')">Xem</button>
+        </div>
+      </div>
+    `).join('')}
+
+    <div class="card-title mt-20">Khám phá (${discover.length})</div>
+    ${discover.map(u => `
+      <div class="user-row">
+        <div class="av av-sm" style="background:${u.color}">${u.initials}</div>
+        <div class="flex-1">
+          <div class="text-base font-bold">${u.name}</div>
+          <div class="text-xs text-soft">${u.bio}</div>
+          <div class="mt-8"><span class="badge badge-soft">${u.persona}</span></div>
+        </div>
+        <button class="btn btn-leaf btn-xs" onclick="addFriend('${u.id}', this)">+ Kết bạn</button>
+      </div>
+    `).join('')}`;
+}
+
+function addFriend(id, btn) {
+  const u = S.users.find(x => x.id === id);
+  if (!u) return;
+  u.friend = true; S.user.friendCount++;
+  btn.closest('.user-row').remove();
+  showToast('Đã kết bạn với ' + u.name + '!');
+}
+
+function openGiftTo(id) {
+  const u = S.users.find(x => x.id === id);
+  openModal(`
+    <div class="modal-title">🌿 Tặng điểm cho ${u.name}</div>
+    <div class="form-group">
+      <label>Số điểm</label>
+      <input type="number" id="gt-amt" value="50" min="1" max="${S.pts}">
+    </div>
+    <div class="form-group">
+      <label>Lời nhắn biết ơn</label>
+      <textarea id="gt-msg" placeholder="Cảm ơn bạn vì..."></textarea>
+    </div>
+    <div class="flex gap-8 jbet">
+      <button class="btn btn-outline" onclick="closeModal()">Huỷ</button>
+      <button class="btn btn-gold" onclick="confirmGiftTo('${id}')">Tặng ngay 🎁</button>
+    </div>
+  `);
+}
+
+function confirmGiftTo(id) {
+  const amt = parseInt(document.getElementById('gt-amt').value);
+  const msg = document.getElementById('gt-msg').value || 'Tặng bạn nhé!';
+  const u = S.users.find(x => x.id === id);
+  if (!amt || amt > S.pts) { showToast('Không đủ điểm!', true); return; }
+  addPoints(-amt, 'Tặng điểm cho ' + u.name);
+  u.pts += amt;
+  S.feed.unshift({ id: 'f' + Date.now(), user: { name: S.user.name, ini: S.user.initials, col: '#4A9B6F' }, action: 'tặng điểm cho', detail: `${u.name}: "${msg}"`, pts: '-' + amt, time: 'Vừa xong', likes: 0 });
+  closeModal(); showToast('Đã tặng ' + amt + ' điểm cho ' + u.name + '!');
+}
+
+function viewUserProfile(id) {
+  const u = S.users.find(x => x.id === id);
+  const statusLabel = { online: 'Trực tuyến', away: 'Vắng mặt', offline: 'Ngoại tuyến' };
+  openModal(`
+    <div style="text-align:center">
+      <div class="av av-lg" style="margin:0 auto 12px;background:${u.color}">${u.initials}</div>
+      <div class="modal-title" style="text-align:center">${u.name}</div>
+      <div class="text-sm text-soft mb-12">${u.bio}</div>
+      <div class="flex jcen flex-wrap gap-6 mb-16">
+        <span class="badge badge-gold">✦ ${fmtPts(u.pts)}</span>
+        <span class="badge badge-teal">${u.persona}</span>
+        <span class="badge badge-${u.status === 'online' ? 'green' : 'soft'}">${statusLabel[u.status]}</span>
+      </div>
+      <button class="btn btn-gold btn-w" onclick="openGiftTo('${u.id}');closeModal()">🌿 Tặng điểm</button>
+    </div>
+  `);
+}
+
+/* ── CHAT (Souly AI) ── */
+function renderChat() {
+  const p = document.getElementById('page-chat');
+  p.innerHTML = `
+    <div class="chat-header">
+      <div class="souly-av">🌱</div>
+      <div class="flex-1">
+        <div style="font-weight:700;font-size:13.5px">Souly</div>
+        <div class="text-xs text-leaf">Trợ lý AI của Humai · Luôn sẵn sàng lắng nghe</div>
+      </div>
+      <div class="status-dot s-online"></div>
+    </div>
+    <div class="chat-messages" id="chat-msgs">
+      <div class="msg ai">
+        <div class="souly-av" style="width:30px;height:30px;font-size:14px;flex-shrink:0">🌱</div>
+        <div>
+          <div class="msg-bubble">Xin chào! Tôi là Souly 🌿<br><br>Tôi có thể tư vấn về văn hóa doanh nghiệp, quy trình nội bộ, hoặc đồng hành cùng bạn trong hành trình sống biết ơn. Bạn muốn nói về điều gì hôm nay?</div>
+          <div class="msg-time">Souly · ${new Date().toLocaleTimeString('vi-VN', {hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      </div>
+      ${S.chat.map(renderChatBubble).join('')}
+    </div>
+    <div class="chat-input-row">
+      <textarea id="chat-input"
+        style="min-height:42px;max-height:110px;resize:none;flex:1"
+        placeholder="Nhắn tin với Souly..."
+        onkeydown="handleChatEnter(event)"></textarea>
+      <button class="btn btn-leaf" style="height:42px;align-self:flex-end" onclick="sendChat()">Gửi ↑</button>
+    </div>`;
+}
+
+function renderChatBubble(m) {
+  return `<div class="msg ${m.r}">
+    ${m.r === 'ai' ? '<div class="souly-av" style="width:30px;height:30px;font-size:14px;flex-shrink:0">🌱</div>' : ''}
+    <div>
+      <div class="msg-bubble">${m.c.replace(/\n/g, '<br>')}</div>
+      <div class="msg-time">${m.r === 'ai' ? 'Souly' : 'Bạn'} · ${m.t}</div>
+    </div>
+    ${m.r === 'user' ? '<div class="av av-xs" style="flex-shrink:0">AN</div>' : ''}
+  </div>`;
+}
+
+function handleChatEnter(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+async function sendChat() {
+  if (S.chatBusy) return;
+  const inp = document.getElementById('chat-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+
+  const now = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  S.chat.push({ r: 'user', c: text, t: now });
+
+  const msgs = document.getElementById('chat-msgs');
+  const uEl = document.createElement('div');
+  uEl.innerHTML = renderChatBubble({ r: 'user', c: text, t: now });
+  msgs.appendChild(uEl.firstChild);
+
+  // Typing indicator
+  const thinkEl = document.createElement('div');
+  thinkEl.className = 'msg ai'; thinkEl.id = 'chat-thinking';
+  thinkEl.innerHTML = `
+    <div class="souly-av" style="width:30px;height:30px;font-size:14px;flex-shrink:0">🌱</div>
+    <div class="msg-bubble flex gap-6" style="padding:12px 16px">
+      <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+    </div>`;
+  msgs.appendChild(thinkEl);
+  msgs.scrollTop = msgs.scrollHeight;
+  S.chatBusy = true;
+
+  // Build context
+  const ragList   = S.rag.filter(d => d.status === 'indexed').map(d => d.name).join(', ');
+  const recentJ   = S.journals.slice(0, 2).map(j => `[${j.date}] ${j.mood}: "${j.text.slice(0, 90)}"`).join('\n');
+  const systemPrompt = `Bạn là Souly — trợ lý AI thân thiện, ấm áp của mạng xã hội Humai, nền tảng khuyến khích lối sống biết ơn và tử tế.
+
+THÔNG TIN NGƯỜI DÙNG:
+- Tên: ${S.user.name}
+- Điểm biết ơn: ${fmtPts(S.pts)}
+- Streak: ${S.user.streak} ngày liên tiếp
+- Persona: ${S.user.persona}
+
+NHẬT KÝ GẦN ĐÂY:
+${recentJ}
+
+KHO TRI THỨC RAG (tài liệu có thể tham chiếu):
+${ragList}
+
+NHIỆM VỤ:
+1. Tư vấn về văn hóa doanh nghiệp / quy trình nội bộ dựa trên tài liệu RAG
+2. Khuyến khích hành vi biết ơn và tử tế
+3. Lắng nghe, đồng cảm và hỗ trợ tâm lý
+4. Gợi ý nhiệm vụ phù hợp với người dùng
+
+PHONG CÁCH: Ấm áp, chân thành, ngắn gọn (≤130 từ trừ khi cần thiết), tiếng Việt tự nhiên, emoji nhẹ nhàng.`;
+
+  const apiMessages = S.chat.map(m => ({ role: m.r === 'ai' ? 'assistant' : 'user', content: m.c }));
+
+  try {
+    const res = await fetch(CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: CONFIG.MODEL,
+        max_tokens: CONFIG.MAX_TOKENS,
+        system: systemPrompt,
+        messages: apiMessages,
+      }),
+    });
+
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'Xin lỗi, có lỗi xảy ra. Bạn thử lại nhé!';
+
+    document.getElementById('chat-thinking')?.remove();
+    const aTime = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    S.chat.push({ r: 'ai', c: reply, t: aTime });
+    const aEl = document.createElement('div');
+    aEl.innerHTML = renderChatBubble({ r: 'ai', c: reply, t: aTime });
+    msgs.appendChild(aEl.firstChild);
+    msgs.scrollTop = msgs.scrollHeight;
+  } catch (err) {
+    document.getElementById('chat-thinking')?.remove();
+    const errEl = document.createElement('div');
+    errEl.innerHTML = renderChatBubble({ r: 'ai', c: 'Souly đang bận, bạn thử lại sau nhé 🌿\n\n(Lưu ý: Để Souly hoạt động, cần cấu hình backend proxy API — xem phần CONFIG trong file HTML)', t: 'Lỗi' });
+    msgs.appendChild(errEl.firstChild);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+  S.chatBusy = false;
+}
+
+/* ── RAG ── */
+function renderRAG() {
+  const p = document.getElementById('page-rag');
+  const indexed = S.rag.filter(d => d.status === 'indexed').length;
+  p.innerHTML = `
+    <div class="flex jbet mb-20">
+      <div class="text-sm text-soft">${indexed} tài liệu sẵn sàng / ${S.rag.length} tổng</div>
+      <button class="btn btn-leaf" onclick="openUploadDoc()">+ Tải lên tài liệu</button>
+    </div>
+    <div class="card mb-20">
+      <div class="card-title">Thống kê kho tri thức</div>
+      <div class="grid-2">
+        <div>
+          <div class="text-xs text-soft mb-8">Dung lượng sử dụng</div>
+          <div class="progress mb-8"><div class="progress-fill" style="width:42%"></div></div>
+          <div class="text-xs text-soft">4.2 GB / 10 GB (42%)</div>
+        </div>
+        <div>
+          <div class="text-xs text-soft mb-8">Vector embeddings</div>
+          <div style="font-size:22px;font-weight:800;color:var(--leaf)">12,847</div>
+          <div class="text-xs text-soft">chunks đã lập chỉ mục</div>
+        </div>
+      </div>
+      <div class="ai-hint mt-12"><b>Souly:</b> Hãy hỏi tôi về văn hoá công ty, quy trình onboarding, hay chính sách phúc lợi!</div>
+    </div>
+    <div class="card-title">Tài liệu đã nạp</div>
+    ${S.rag.map(d => `
+      <div class="doc-row">
+        <div style="font-size:22px;width:30px;text-align:center">${d.type === 'pdf' ? '📄' : d.type === 'docx' ? '📝' : '📊'}</div>
+        <div class="flex-1">
+          <div class="text-base font-bold">${d.name}</div>
+          <div class="text-xs text-soft">${d.type.toUpperCase()} · ${d.size} · ${d.date}</div>
+          ${d.status === 'indexing'
+            ? `<div class="progress mt-8"><div class="progress-fill progress-gold" style="width:62%"></div></div>`
+            : ''}
+        </div>
+        <span class="badge ${d.status === 'indexed' ? 'badge-green' : 'badge-gold'}">
+          ${d.status === 'indexed' ? '✓ Sẵn sàng' : '⏳ Đang xử lý'}
+        </span>
+      </div>
+    `).join('')}`;
+}
+
+function openUploadDoc() {
+  openModal(`
+    <div class="modal-title">📤 Tải lên tài liệu mới</div>
+    <div style="border:2px dashed var(--border);border-radius:12px;padding:30px;text-align:center;cursor:pointer;background:var(--bg-input)" onclick="document.getElementById('doc-file-input').click()">
+      <div style="font-size:38px;margin-bottom:8px">📄</div>
+      <div class="text-base font-bold text-mid">Click để chọn file</div>
+      <div class="text-xs text-soft">Hỗ trợ: PDF, DOCX, XLSX, TXT</div>
+      <input type="file" id="doc-file-input" style="display:none" accept=".pdf,.docx,.xlsx,.txt" onchange="handleDocFile(this)">
+    </div>
+    <div id="doc-preview" style="display:none;margin-top:10px">
+      <div class="doc-row">
+        <div style="font-size:22px">📄</div>
+        <div><div id="doc-fname" class="text-base font-bold"></div><div id="doc-fsize" class="text-xs text-soft"></div></div>
+      </div>
+    </div>
+    <div class="flex gap-8 jbet mt-16">
+      <button class="btn btn-outline" onclick="closeModal()">Huỷ</button>
+      <button class="btn btn-leaf" onclick="confirmUpload()">📤 Tải lên & Lập chỉ mục</button>
+    </div>
+  `);
+}
+
+function handleDocFile(inp) {
+  const f = inp.files[0]; if (!f) return;
+  document.getElementById('doc-fname').textContent = f.name;
+  document.getElementById('doc-fsize').textContent = (f.size / 1024 / 1024).toFixed(1) + ' MB';
+  document.getElementById('doc-preview').style.display = 'block';
+}
+
+function confirmUpload() {
+  const inp = document.getElementById('doc-file-input');
+  if (!inp.files[0]) { showToast('Vui lòng chọn file!', true); return; }
+  const f = inp.files[0];
+  const ext = f.name.split('.').pop().toLowerCase();
+  S.rag.unshift({ id: 'd' + Date.now(), name: f.name, type: ext, size: (f.size / 1024 / 1024).toFixed(1) + ' MB', date: new Date().toLocaleDateString('vi-VN'), status: 'indexing' });
+  closeModal();
+  showToast('Đang lập chỉ mục tài liệu...');
+  setTimeout(() => {
+    if (S.rag[0]) S.rag[0].status = 'indexed';
+    showToast('Tài liệu đã sẵn sàng cho Souly!');
+    if (S.currentPage === 'rag') renderRAG();
+  }, 3000);
+  renderRAG();
+}
+
+/* ── PROFILE ── */
+function renderProfile() {
+  const u = S.user;
+  const allUsers = [{ name: S.user.name, initials: S.user.initials, pts: S.pts, color: '#4A9B6F', isMe: true }, ...S.users];
+  const ranked = [...allUsers].sort((a, b) => b.pts - a.pts);
+
+  document.getElementById('page-profile').innerHTML = `
+    <div class="grid-2 mb-20" style="align-items:start">
+      <div class="card" style="text-align:center">
+        <div class="av av-lg" style="margin:0 auto 12px">${u.initials}</div>
+        <div style="font-size:19px;font-weight:800">${u.name}</div>
+        <div class="text-sm text-soft" style="margin:5px 0 10px">${u.bio}</div>
+        <div class="flex jcen flex-wrap gap-6 mb-12">
+          <span class="badge badge-green">${u.level}</span>
+          <span class="badge badge-teal">${u.persona}</span>
+        </div>
+        <div class="flex jcen flex-wrap gap-6 mb-16">
+          ${u.skills.map(s => `<span class="badge badge-soft">${s}</span>`).join('')}
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="openEditProfile()">✏️ Chỉnh sửa hồ sơ</button>
+      </div>
+      <div>
+        <div class="card mb-12">
+          <div class="card-title">Thống kê cá nhân</div>
+          <div class="grid-2 gap-8">
+            ${[
+              { n: fmtPts(S.pts), l: 'Tổng điểm', c: 'var(--leaf)' },
+              { n: u.streak, l: 'Ngày liên tiếp', c: 'var(--gold-dark)' },
+              { n: u.friendCount, l: 'Bạn bè', c: '#5A8EAF' },
+              { n: u.journalCount, l: 'Nhật ký', c: '#9A7AC8' },
+            ].map(x => `
+              <div class="stat-tile">
+                <div class="stat-num" style="color:${x.c}">${x.n}</div>
+                <div class="stat-label">${x.l}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">AI phân tích hành vi</div>
+          <div class="text-sm mb-8"><b>Phân loại:</b> <span class="badge badge-teal">${u.persona}</span></div>
+          <div class="text-sm mb-8"><b>Điểm mạnh:</b> Chia sẻ · Kết nối · Lắng nghe</div>
+          <div class="ai-hint">Bạn có xu hướng lan toả năng lượng tích cực. Hãy thử đảm nhiệm vai trò mentor cho thành viên mới!</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-title">Bảng xếp hạng cộng đồng</div>
+    <div class="card">
+      ${ranked.map((u, i) => `
+        <div class="rank-row" style="${i === ranked.length - 1 ? 'border-bottom:none' : ''}">
+          <div class="rank-num" style="color:${i===0?'#C8A020':i===1?'#909090':i===2?'#A07040':'var(--text-soft)'}">
+            ${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+          </div>
+          <div class="av av-xs" style="background:${u.color || '#4A9B6F'}">${u.initials}</div>
+          <div class="flex-1 text-sm" style="font-weight:${u.isMe ? 700 : 500}">
+            ${u.name}${u.isMe ? ' <span class="badge badge-green" style="font-size:10px;padding:2px 7px">Bạn</span>' : ''}
+          </div>
+          <div class="text-sm font-bold text-gold">✦ ${fmtPts(u.pts)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function openEditProfile() {
+  const u = S.user;
+  openModal(`
+    <div class="modal-title">✏️ Chỉnh sửa hồ sơ</div>
+    <div class="form-group">
+      <label>Tên hiển thị</label>
+      <input id="ep-name" value="${u.name}">
+    </div>
+    <div class="form-group">
+      <label>Trạng thái</label>
+      <select id="ep-status">
+        <option value="online" ${u.status==='online'?'selected':''}>🟢 Trực tuyến</option>
+        <option value="away"   ${u.status==='away'  ?'selected':''}>🟡 Vắng mặt</option>
+        <option value="offline"${u.status==='offline'?'selected':''}>⚫ Ngoại tuyến</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Giới thiệu bản thân</label>
+      <textarea id="ep-bio">${u.bio}</textarea>
+    </div>
+    <div class="flex gap-8 jbet">
+      <button class="btn btn-outline" onclick="closeModal()">Huỷ</button>
+      <button class="btn btn-leaf" onclick="saveProfile()">💾 Lưu thay đổi</button>
+    </div>
+  `);
+}
+
+function saveProfile() {
+  S.user.name   = document.getElementById('ep-name').value.trim() || S.user.name;
+  S.user.status = document.getElementById('ep-status').value;
+  S.user.bio    = document.getElementById('ep-bio').value.trim();
+  document.getElementById('me-name').textContent = S.user.name;
+  closeModal();
+  showToast('Hồ sơ đã được cập nhật!');
+  renderProfile();
+}
+
+/* ── BOOT ──────────────────────────────────────────── */
+// Init badge count
+document.getElementById('nb-tasks').textContent = S.tasks.filter(t => !t.done).length;
+
+// First render
+renderFeed();
+</script>
+</body>
+</html>
